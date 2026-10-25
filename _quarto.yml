@@ -1,0 +1,58 @@
+project:
+  type: book
+  output-dir: outputs/reports/_book
+
+book:
+  title: "..."                    # to be adjusted
+  subtitle: "..."                 # to be adjusted
+  author: "Damiano Pincolini"
+  date: last-modified
+  chapters:
+    - index.qmd                   # to be adjusted
+    - 01_intro_data_check.qmd     # to be adjusted
+    - 02_eda.qmd                  # to be adjusted
+    - 03_modeling.qmd             # to be adjusted
+
+format:
+  html:
+    theme: zephyr
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true          # Hides default code
+    code-summary: "Show Python code"
+    code-tools: true
+    self-contained: true     # creates a single file
+    link-external-newwindow: true
+
+  pdf:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    documentclass: report
+    keep-tex: false
+    classoption: ["oneside", "openany"]
+    geometry: "margin=2cm"
+    pdf-engine: lualatex
+    include-in-header:
+      text: |
+        \usepackage{afterpage}
+        \usepackage{pdflscape}
+        \usepackage{titlesec}
+        \titleformat{\chapter}[display]
+          {\normalfont\large\bfseries}
+          {\chaptertitlename\ \thechapter}{10pt}{\large}
+        \setcounter{secnumdepth}{3}
+        \usepackage{longtable}
+        \usepackage{booktabs}
+        \usepackage{array}
+        \usepackage{pdflscape}
+
+execute:
+  echo: true           
+  warning: false
+  error: false
+  jupyter: python3
+
+lang: en
+

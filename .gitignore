@@ -1,0 +1,52 @@
+# ==========================================
+# QUARTO OUTPUTS & RENDER
+# ==========================================
+outputs/plots/*
+!outputs/plots/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
+# Ignore directory contents to keep dataset and output files out of version
+# control, while preserving the folder structure
+
+/.quarto/
+_book/
+_freeze/
+**/*.quarto_ipynb
+
+# ==========================================
+# PYTHON & JUPYTER
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# ==========================================
+# DATA
+# ==========================================
+data/raw_data/*
+!data/raw_data/.gitkeep
+data/processed_data/*
+!data/processed_data/.gitkeep
+# Ignore directory contents to keep dataset and output files out of version
+# control, while preserving the folder structure
+
+
+# ==========================================
+# ENVIRONMENT & SECRETS
+# ==========================================
+.env
+.venv/
+venv/
+ENV/
+temp/
+
+# ==========================================
+# OPERATING SYSTEM FILES
+# ==========================================
+Thumbs.db
+ehthumbs.pth
+Desktop.ini
+.DS_Store
+requirements_start.txt
