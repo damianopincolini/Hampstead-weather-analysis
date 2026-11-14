@@ -1,5 +1,7 @@
 import os
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import polars as pl
 import psycopg2
 from dotenv import load_dotenv
@@ -23,7 +25,7 @@ LATITUDE = 51.5556
 LONGITUDE = -0.1783
 
 def fetch_weather_data():
-    """Scarica i dati meteo storici/correnti da Open-Meteo API"""
+    """Scarica i dati meteo storici/correnti da Open-Meteo API con retry automatici e timeout"""
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={LATITUDE}&longitude={LONGITUDE}&"
@@ -31,7 +33,19 @@ def fetch_weather_data():
     )
     
     print("\nScaricamento dati da Open-Meteo in corso...")
-    response = requests.get(url)
+    
+    # Configuriamo una sessione con tentativi automatici (retry) in caso di congestione temporanea
+    session = requests.Session()
+    retries = Retry(
+        total=5, 
+        backoff_factor=3, 
+        status_forcelist=[500, 502, 503, 504],
+        raise_on_status=False
+    )
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    
+    # Eseguiamo la richiesta con un timeout di 30 secondi
+    response = session.get(url, timeout=30)
     response.raise_for_status()
     data = response.json()
     
