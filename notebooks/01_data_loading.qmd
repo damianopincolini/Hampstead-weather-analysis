@@ -1,0 +1,235 @@
+---
+title: "DATA PREPARATION"
+jupyter: python3
+---
+
+## Preliminary s
+ettings 
+
+### Library loading
+
+```{python}
+#| label: Setup & configuration
+#| include: false
+
+import sys
+from pathlib import Path
+
+# Identify current working directory and set path to the project root folder
+current_path = Path.cwd()
+if current_path.name == "notebooks":
+    root_path = current_path.parent
+else:
+    root_path = current_path
+
+# Append project root directory to system path for custom module loading
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
+
+# Load project configuration paths
+from scripts.project_config import paths
+
+```
+
+```{python}
+#| label: library-loading
+#| include: false
+
+# Data ingestion script for direct Supabase PostgreSQL connection
+from scripts.project_config import paths
+from scripts.data_ingestion import dataset_import
+
+# Data manipulation libraries
+import polars as pl
+import polars.selectors as cs
+import pandas as pd  # Required for specific profiling tools conversion
+
+# Custom data wrangling script
+from scripts.data_wrangling import feature_engineering 
+
+# Analysis and quality tools
+from data_profiling import ProfileReport
+from skimpy import skim
+from scripts.data_describe import data_describe 
+from scripts.dataset_profiling import create_quality_report 
+
+# Data visualization
+from great_tables import GT
+from IPython.display import display
+
+# Data partitioning
+# not needed in this context since we'll aim to a chronological split
+
+# File saving utilities
+from scripts.intermediate_files import (
+    save_train_test_eda_datasets,
+    save_train_test_modeling_datasets
+)
+
+```
+
+
+## Data ingestion and handling
+
+### Loading and overview
+
+The dataset has a pretty simple structure:
+id;
+time which exposes the date and time to which data are referred to (as a real data or as a forecast);
+location, a string type which only reports Hampstead since this analysis is focused on this and only place;
+five columns (number data type) containg weather parameters (temperature, relative humidity, precipatiation, wind speed and wind direction);
+created_at: a datetime type column indicating the moment data were created.
+
+
+```{python}
+#| label: data_ingestion
+#| eval: true
+
+# Import dataset from Supabase using the ingestion function
+data_origin = dataset_import()
+
+# Display the first few rows of the dataframe
+print(data_origin.head(5))
+```
+
+```{python}
+#| label: data-origin-schema
+#| echo: false
+
+# create a schema in Polars DataFrame data type
+data_schema = pl.DataFrame({
+    "feature": data_origin.schema.names(),
+    "dtype": [str(d) for d in data_origin.schema.dtypes()]
+})
+
+# Visualize schema with GT
+(
+    GT(data_schema)
+    .tab_header(
+        title="Dataset schema",
+        subtitle="Feature names and data types"
+        )
+    )
+
+```
+
+```{python}
+#| label: data-describe
+#| echo: false
+
+
+data_describe(data_origin)
+
+
+```
+
+
+### Data profiling
+
+```{python}
+#| label: data-profiling
+#| include: false
+
+create_quality_report(
+    data_origin,
+    paths["report_dir"] / "data_quality.html"
+    )
+```
+
+Data profiling analysis is based on 312 (on november 2026 the first) and there is one specific insight to highlight: precipitation shows 299 zero value over 312 total observations.
+There are no missing values.
+
+
+### Data splitting
+
+```{python}
+#| label: data_split
+#| include: false
+
+from scripts.data_partitioning_time_based import time_based_data_split
+
+raw_data_train, raw_data_test = (
+    time_based_data_split(
+        df_polars = data_origin,
+        time_column = "time",
+        train_threshold = 0.8
+        )
+    )
+
+```
+
+
+### Data wrangling and validation
+
+Next step is focused only on the train test obtained from raw data and it's aimed to create the dataset to be used during EDA: it's based on the train set (to avoid any kind of data leakage) and introduces stateless changes based on konwldge domain.
+Test set is non supposed to be affected by this manipulation.
+Domain knowledge advices to "improve" train set by taking the following steps:
+1. cancel "id", "location" and "created_at" columns since they are useless;
+2. create a "day" and an "hour" column that split datetime column content;
+3. create a boolean column that states if weather values for each single row are real or forecast.
+Note that data wrangling is immediately followed by data validation (using Pandera) so as to have a rapid and immediate feedback about data quality.
+The quality "contract" is based on the following rules:
+1. "temperature_2m": datatype Float64, values between -40.0 and 50.0 and accept null values if present.
+2. "relative_humidity_2m": datatype Float64, values between 0.0 and 100.0 and accept null values if present.
+3. "precipitation": datatype Float64, values greater or equal to 0.0 and accept null values if present.
+4. "value_origin": datatype String and value accepted "real" and "forecast".
+5. "date": datatype Date.
+
+
+```{python}
+#| label: data_wrangling
+#| echo: False
+
+EDA_data_train = feature_engineering(raw_data_train)
+
+```
+
+
+### Data glimpse
+
+```{python}
+#| label: post-wrangling EDA_data_train glimpse
+#| echo: False
+
+from polars.functions import datatype
+
+# create a schema in Polars DataFrame data type
+data_schema_post_wrangling = pl.DataFrame({
+    "feature": EDA_data_train.schema.names(),
+    "dtype": [str(datatype) for datatype in EDA_data_train.schema.dtypes()]
+})
+
+
+(
+    GT(data_schema_post_wrangling)
+    .tab_header(
+        title = "Post wranging dataset schema",
+        subtitle = "Feature names and data types"
+    )
+)
+
+```
+
+
+```{python}
+#| label: saving intermediate files
+#| include: False
+
+from scripts.intermediate_files import save_eda_dataset, save_modeling_datasets
+
+save_eda_dataset(
+    df_eda_polars = EDA_data_train,
+    output_dir = paths["processed_data_dir"]
+)
+
+save_modeling_datasets(
+    df_train_polars = raw_data_train,
+    df_test_polars = raw_data_test,
+    output_dir = paths["processed_data_dir"]
+)
+
+
+```
+
+
+
